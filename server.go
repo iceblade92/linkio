@@ -55,7 +55,7 @@ func (s *server) start() error {
 	if err := s.httpServer.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-	s.logger.Info("Linko is starting up")
+	s.logger.Debug("Linko is starting up")
 	return nil
 }
 
