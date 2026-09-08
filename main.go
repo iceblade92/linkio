@@ -31,7 +31,7 @@ type closeFunc func() error
 
 func initializeLogger(logfile string) (*slog.Logger, closeFunc, error) {
 	handlers := []slog.Handler{
-		slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 		}),
 	}
@@ -52,11 +52,11 @@ func initializeLogger(logfile string) (*slog.Logger, closeFunc, error) {
 			}
 			return nil
 		}
-		handlers = append(handlers, slog.NewTextHandler(bufferedFile, &slog.HandlerOptions{
+		handlers = append(handlers, slog.NewJSONHandler(bufferedFile, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		}))
 		closers = append(closers, close)
-		handlers = append(handlers, slog.NewTextHandler(bufferedFile, &slog.HandlerOptions{
+		handlers = append(handlers, slog.NewJSONHandler(bufferedFile, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		}))
 		closers = append(closers, close)
