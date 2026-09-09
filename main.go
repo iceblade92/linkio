@@ -56,10 +56,6 @@ func initializeLogger(logfile string) (*slog.Logger, closeFunc, error) {
 			Level: slog.LevelInfo,
 		}))
 		closers = append(closers, close)
-		handlers = append(handlers, slog.NewJSONHandler(bufferedFile, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
-		}))
-		closers = append(closers, close)
 	}
 	closer := func() error {
 		var errs []error
