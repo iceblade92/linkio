@@ -72,7 +72,7 @@ func (s *server) handlerRedirect(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, store.ErrNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)
 		} else {
-			s.logger.Error("Failed to lookup URL:", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "Error", err)
+			s.logger.Error("Failed to lookup URL:", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "error", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 		return
@@ -93,7 +93,7 @@ func (s *server) handlerRedirect(w http.ResponseWriter, r *http.Request) {
 func (s *server) handlerListURLs(w http.ResponseWriter, r *http.Request) {
 	codes, err := s.store.List(r.Context())
 	if err != nil {
-		s.logger.Error("Failed to list URLs:", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "Error", err)
+		s.logger.Error("Failed to list URLs:", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "error", err)
 		http.Error(w, "Failed to list URLs", http.StatusInternalServerError)
 		return
 	}
