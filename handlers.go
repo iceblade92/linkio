@@ -72,7 +72,7 @@ func (s *server) handlerRedirect(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, store.ErrNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)
 		} else {
-			s.logger.Error("Failed to lookup URL:", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "error", err)
+			s.logger.Error("failed to lookup URL", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "error", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 		return
