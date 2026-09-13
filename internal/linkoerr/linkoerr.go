@@ -2,12 +2,20 @@ package linkoerr
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
+
+	pkgerr "github.com/pkg/errors"
 )
 
 type errWithAttrs struct {
 	error
 	attrs []slog.Attr
+}
+
+type stackTracer interface {
+	error
+	StackTrace() pkgerr.StackTrace
 }
 
 func WithAttrs(err error, args ...any) error {
@@ -36,6 +44,24 @@ func argsToAttr(args []any) []slog.Attr {
 			attrs = append(attrs, slog.Any("!BADKEY", args[i]))
 			i++
 		}
+	}
+	return attrs
+}
+
+func ErrorAttrs(err error) []slog.Attr {
+	var attrs []slog.Attr
+	attrs = []slog.Attr{
+		{
+			Key:   "message",
+			Value: slog.StringValue(err.Error()),
+		},
+	}
+	attrs = append(attrs, Attrs(err)...)
+	if stackErr, ok := errors.AsType[stackTracer](err); ok {
+		attrs = append(attrs, slog.Attr{
+			Key:   "stack_trace",
+			Value: slog.StringValue(fmt.Sprintf("%+v", stackErr.StackTrace())),
+		})
 	}
 	return attrs
 }
