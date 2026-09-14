@@ -129,9 +129,9 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			r.Body = spyReader
 			next.ServeHTTP(spyWriter, r)
 			logger.Info("Served request",
-				"method", r.Method,
-				"path", r.URL.Path,
-				"client_ip", "http://localhost:8080/",
+				slog.String("method", r.Method),
+				slog.String("path", r.URL.Path),
+				slog.String("client_ip", r.RemoteAddr),
 				slog.Duration("duration", time.Since(start)),
 				slog.Int("response_status", spyWriter.statusCode),
 				slog.Int("response_body_bytes", spyWriter.bytesWritten),
