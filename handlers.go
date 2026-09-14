@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"boot.dev/linko/internal/store"
 	"golang.org/x/crypto/bcrypt"
@@ -122,8 +123,51 @@ func (s *server) handlerStats(w http.ResponseWriter, _ *http.Request) {
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-			logger.Info("Served request", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/")
+			start := time.Now()
+			spyWriter := &spyResponseWriter{ResponseWriter: w}
+			spyReader := &spyReadCloser{ReadCloser: r.Body}
+			r.Body = spyReader
+			next.ServeHTTP(spyWriter, r)
+			logger.Info("Served request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"client_ip", "http://localhost:8080/",
+				slog.Duration("duration", time.Since(start)),
+				slog.Int("response_status", spyWriter.statusCode),
+				slog.Int("response_body_bytes", spyWriter.bytesWritten),
+				slog.Int("request_body_bytes", spyReader.bytesRead),
+			)
 		})
 	}
+}
+
+type spyReadCloser struct {
+	io.ReadCloser
+	bytesRead int
+}
+
+func (r *spyReadCloser) Read(p []byte) (int, error) {
+	n, err := r.ReadCloser.Read(p)
+	r.bytesRead += n
+	return n, err
+}
+
+type spyResponseWriter struct {
+	http.ResponseWriter
+	bytesWritten int
+	statusCode   int
+}
+
+func (w *spyResponseWriter) Write(p []byte) (int, error) {
+	if w.statusCode == 0 {
+		w.statusCode = http.StatusOK
+	}
+	n, err := w.ResponseWriter.Write(p)
+	w.bytesWritten += n
+	return n, err
+}
+
+func (w *spyResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
 }
