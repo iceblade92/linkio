@@ -75,6 +75,7 @@ func (s *server) handlerRedirect(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, store.ErrNotFound) {
 			httpError(r.Context(), w, http.StatusNotFound, errors.New("not found"))
 		} else {
+			s.logger.Error("failed to lookup URL", "error", err)
 			httpError(r.Context(), w, http.StatusInternalServerError, fmt.Errorf("internal server error: %w", err))
 		}
 		return
@@ -146,6 +147,7 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.Int("response_status", spyWriter.statusCode),
 				slog.Int("response_body_bytes", spyWriter.bytesWritten),
 				slog.Int("request_body_bytes", spyReader.bytesRead),
+				slog.String("request_id", spyWriter.Header().Get("X-Request-ID")),
 			}
 			if logCtx.Username != "" {
 				attrs = append(attrs, slog.String("user", logCtx.Username))
