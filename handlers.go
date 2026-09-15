@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"boot.dev/linko/internal/linkoerr"
 	"boot.dev/linko/internal/store"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -40,26 +41,26 @@ func (s *server) handlerLogin(w http.ResponseWriter, r *http.Request) {
 func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value(UserContextKey).(string)
 	if !ok || user == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		httpError(r.Context(), w, http.StatusUnauthorized, errors.New("unauthorized"))
 		return
 	}
 	longURL := r.FormValue("url")
 	if longURL == "" {
-		http.Error(w, "missing url parameter", http.StatusBadRequest)
+		httpError(r.Context(), w, http.StatusBadRequest, errors.New("missing url parameter"))
 		return
 	}
 	u, err := url.Parse(longURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		http.Error(w, "invalid URL: must include scheme (http/https) and host", http.StatusBadRequest)
+		httpError(r.Context(), w, http.StatusBadRequest, errors.New("invalid URL: must include scheme (http/https) and host"))
 		return
 	}
 	if err := checkDestination(longURL); err != nil {
-		http.Error(w, fmt.Sprintf("invalid target URL: %v", err), http.StatusBadRequest)
+		httpError(r.Context(), w, http.StatusBadRequest, fmt.Errorf("invalid target URL: %w", err))
 		return
 	}
 	shortCode, err := s.store.Create(r.Context(), longURL)
 	if err != nil {
-		http.Error(w, "failed to shorten URL", http.StatusInternalServerError)
+		httpError(r.Context(), w, http.StatusInternalServerError, fmt.Errorf("failed to shorten URL: %w", err))
 		return
 	}
 	s.logger.Info("Successfully generated short code", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "scheme", u.Scheme, "host", u.Host, "short", shortCode, "long", longURL)
@@ -72,16 +73,15 @@ func (s *server) handlerRedirect(w http.ResponseWriter, r *http.Request) {
 	longURL, err := s.store.Lookup(r.Context(), r.PathValue("shortCode"))
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			http.Error(w, "not found", http.StatusNotFound)
+			httpError(r.Context(), w, http.StatusNotFound, errors.New("not found"))
 		} else {
-			s.logger.Error("failed to lookup URL", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "error", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			httpError(r.Context(), w, http.StatusInternalServerError, fmt.Errorf("internal server error: %w", err))
 		}
 		return
 	}
 	_, _ = bcrypt.GenerateFromPassword([]byte(longURL), bcrypt.DefaultCost)
 	if err := checkDestination(longURL); err != nil {
-		http.Error(w, "destination unavailable", http.StatusBadGateway)
+		httpError(r.Context(), w, http.StatusBadGateway, errors.New("destination unavailable"))
 		return
 	}
 
@@ -95,8 +95,7 @@ func (s *server) handlerRedirect(w http.ResponseWriter, r *http.Request) {
 func (s *server) handlerListURLs(w http.ResponseWriter, r *http.Request) {
 	codes, err := s.store.List(r.Context())
 	if err != nil {
-		s.logger.Error("failed to list URLs", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "error", err)
-		http.Error(w, "failed to list URLs", http.StatusInternalServerError)
+		httpError(r.Context(), w, http.StatusInternalServerError, fmt.Errorf("failed to list URLs: %w", err))
 		return
 	}
 
@@ -121,6 +120,13 @@ func (s *server) handlerStats(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
+func httpError(ctx context.Context, w http.ResponseWriter, status int, err error) {
+	if logCtx, ok := ctx.Value(logContextKey).(*LogContext); ok {
+		logCtx.Error = err
+	}
+	http.Error(w, err.Error(), status)
+}
+
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -143,6 +149,13 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			}
 			if logCtx.Username != "" {
 				attrs = append(attrs, slog.String("user", logCtx.Username))
+			}
+			if logCtx.Error != nil {
+				groupValue := slog.GroupValue(linkoerr.ErrorAttrs(logCtx.Error)...)
+				attrs = append(attrs, slog.Attr{
+					Key:   "error",
+					Value: groupValue,
+				})
 			}
 			logger.Info("Served request", attrs...)
 		})
