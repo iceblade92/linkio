@@ -15,6 +15,8 @@ import (
 	"boot.dev/linko/internal/build"
 	"boot.dev/linko/internal/linkoerr"
 	"boot.dev/linko/internal/store"
+	"github.com/lmittmann/tint"
+	"github.com/mattn/go-isatty"
 )
 
 func main() {
@@ -32,10 +34,12 @@ func main() {
 type closeFunc func() error
 
 func initializeLogger(logfile string) (*slog.Logger, closeFunc, error) {
+	w := os.Stderr
 	handlers := []slog.Handler{
-		slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		tint.NewTextHandler(w, &tint.Options{
 			Level:       slog.LevelDebug,
 			ReplaceAttr: replaceAttr,
+			NoColor:     !(isatty.IsTerminal(w.Fd()) || isatty.IsCygwinTerminal(w.Fd())),
 		}),
 	}
 	closers := []closeFunc{}
