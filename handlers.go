@@ -125,7 +125,16 @@ func httpError(ctx context.Context, w http.ResponseWriter, status int, err error
 	if logCtx, ok := ctx.Value(logContextKey).(*LogContext); ok {
 		logCtx.Error = err
 	}
-	http.Error(w, err.Error(), status)
+	message := err.Error()
+	switch status {
+	case 401:
+		message = http.StatusText(status)
+	case 403:
+		message = http.StatusText(status)
+	case 500:
+		message = http.StatusText(status)
+	}
+	http.Error(w, message, status)
 }
 
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
