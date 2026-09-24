@@ -6,8 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 
@@ -82,6 +84,26 @@ type multiError interface {
 }
 
 func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+	var sensitiveKeys = []string{"password", "key", "apikey", "secret", "pin", "creditcardno", "user"}
+	if slices.Contains(sensitiveKeys, a.Key) {
+		return slog.String(a.Key, "[REDACTED]")
+	}
+	if a.Value.Kind() == slog.KindString {
+		parsed, err := url.Parse(a.Value.String())
+		if err != nil {
+			return a
+		}
+		if parsed.User != nil {
+			name := parsed.User.Username()
+			_, hasPassword := parsed.User.Password()
+			if hasPassword {
+				pass := url.UserPassword(name, "[REDACTED]")
+				parsed.User = pass
+				newurl := parsed.String()
+				return slog.String(a.Key, newurl)
+			}
+		}
+	}
 	if a.Key == "error" {
 		err, ok := a.Value.Any().(error)
 		if !ok {

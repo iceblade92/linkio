@@ -64,7 +64,7 @@ func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 		httpError(r.Context(), w, http.StatusInternalServerError, fmt.Errorf("failed to shorten URL: %w", err))
 		return
 	}
-	s.logger.Info("Successfully generated short code", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "scheme", u.Scheme, "host", u.Host, "short", shortCode, "long", longURL)
+	s.logger.Info("Successfully generated short code", "method", r.Method, "path", r.URL.Path, "client_ip", "http://localhost:8080/", "scheme", u.Scheme, "host", u.Host, "short", shortCode, "long_url", longURL)
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
 	io.WriteString(w, shortCode)
