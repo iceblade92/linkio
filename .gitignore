@@ -6,3 +6,4 @@ vendor/
 *.gz
 cpu.*
 spam*
+memory.*
